@@ -8,10 +8,17 @@ struct KeychainTokenStore {
         guard let blob = SecurityCLI.run(["find-generic-password", "-s", id.rawValue, "-w"]) else {
             throw InfrastructureError.tokenUnavailable
         }
+        return try Self.accessToken(fromBlob: blob)
+    }
+
+    /// Parse the credential blob in isolation (testable without the Keychain). A
+    /// present-but-unparseable blob throws `.badCredentialFormat` — distinct from
+    /// `.tokenUnavailable` (no item) so the surfaced error is actionable.
+    static func accessToken(fromBlob blob: String) throws -> String {
         let trimmed = blob.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let data = trimmed.data(using: .utf8),
               let stored = try? JSONDecoder().decode(Stored.self, from: data) else {
-            throw InfrastructureError.tokenUnavailable
+            throw InfrastructureError.badCredentialFormat
         }
         return stored.claudeAiOauth.accessToken
     }

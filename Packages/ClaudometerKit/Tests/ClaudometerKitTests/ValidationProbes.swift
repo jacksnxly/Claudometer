@@ -72,6 +72,21 @@ private struct SlowProvider: UsageProvider {
     #expect(cd(45) != "in 0m")
 }
 
+// MARK: - Finding 5 — malformed credential blob must not masquerade as "no token"
+
+@Test func finding5_malformedBlob_isDistinctFromMissing() throws {
+    // Present-but-unparseable blob → a distinct, actionable error (not tokenUnavailable).
+    #expect(throws: InfrastructureError.badCredentialFormat) {
+        _ = try KeychainTokenStore.accessToken(fromBlob: #"{"not":"the expected shape"}"#)
+    }
+    #expect(throws: InfrastructureError.badCredentialFormat) {
+        _ = try KeychainTokenStore.accessToken(fromBlob: "not json at all")
+    }
+    // Happy path still returns the token.
+    let valid = #"{"claudeAiOauth":{"accessToken":"sk-ant-oat01-xyz"}}"#
+    #expect(try KeychainTokenStore.accessToken(fromBlob: valid) == "sk-ant-oat01-xyz")
+}
+
 // MARK: - Finding 4 — meter label truncates instead of rounding (documents the fact)
 
 @Test func observe_finding4_intTruncationVsRounding() {
