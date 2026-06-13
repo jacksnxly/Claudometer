@@ -21,7 +21,13 @@ public final class MenuBarViewModel {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-        results = await refreshUsage.execute()
+        let newResults = await refreshUsage.execute()
+        // A cancelled refresh (e.g. the menu-bar popover closed mid-flight) must not
+        // commit partial/cancelled results: otherwise `results` stops being empty and
+        // the view's `.task` never auto-refreshes again. Cancellation is cooperative
+        // (SE-0304) — respond by returning promptly without committing stale work.
+        guard !Task.isCancelled else { return }
+        results = newResults
         lastUpdated = Date()
     }
 }
