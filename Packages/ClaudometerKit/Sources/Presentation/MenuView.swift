@@ -20,7 +20,7 @@ public struct MenuView: View {
             footer
         }
         .padding(14)
-        .frame(width: 320)
+        .frame(width: 360)
         .task {
             if viewModel.results.isEmpty { await viewModel.refresh() }
         }
@@ -118,13 +118,27 @@ private struct WindowMeter: View {
         HStack(spacing: 8) {
             Text(window.period.label)
                 .font(.caption.monospaced())
-                .frame(width: 88, alignment: .leading)
+                .frame(width: 84, alignment: .leading)
                 .foregroundStyle(.secondary)
             ProgressView(value: window.utilization.percentage, total: 100)
                 .tint(color)
             Text("\(Int(window.utilization.percentage))%")
                 .font(.caption.monospaced())
-                .frame(width: 38, alignment: .trailing)
+                .frame(width: 34, alignment: .trailing)
+            reset
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .frame(width: 58, alignment: .trailing)
+        }
+    }
+
+    @ViewBuilder
+    private var reset: some View {
+        if let resetsAt = window.resetsAt {
+            Text(resetsAt, style: .relative)
+                .help("Resets \(resetsAt.formatted(date: .abbreviated, time: .shortened))")
+        } else {
+            Text("—")
         }
     }
 

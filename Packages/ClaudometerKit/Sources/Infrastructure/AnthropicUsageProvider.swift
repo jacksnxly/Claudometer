@@ -84,14 +84,29 @@ private struct WindowDTO: Decodable {
     }
 
     /// `resets_at` arrives as ISO-8601 with fractional seconds and an offset,
-    /// e.g. `2026-04-11T07:00:00.528743+00:00`. Best-effort parse; nil if absent.
+    /// e.g. `2026-04-11T07:00:00.528743+00:00`. `ISO8601DateFormatter` only
+    /// accepts up to millisecond precision, so fall back to stripping the
+    /// sub-second component before parsing.
     var resetDate: Date? {
         guard let resetsAt else { return nil }
         let fractional = ISO8601DateFormatter()
         fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = fractional.date(from: resetsAt) { return date }
+
         let plain = ISO8601DateFormatter()
         plain.formatOptions = [.withInternetDateTime]
-        return plain.date(from: resetsAt)
+        return plain.date(from: Self.removingFractionalSeconds(from: resetsAt))
+    }
+
+    /// Strip a `.123456` sub-second component, e.g.
+    /// `…:00.528743+00:00` → `…:00+00:00`.
+    static func removingFractionalSeconds(from value: String) -> String {
+        guard let dot = value.firstIndex(of: ".") else { return value }
+        let afterDot = value.index(after: dot)
+        guard let offset = value[afterDot...].firstIndex(where: { $0 == "+" || $0 == "-" || $0 == "Z" })
+        else { return value }
+        var copy = value
+        copy.removeSubrange(dot..<offset)
+        return copy
     }
 }
