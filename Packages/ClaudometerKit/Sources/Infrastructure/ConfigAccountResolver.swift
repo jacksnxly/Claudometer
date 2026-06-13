@@ -13,10 +13,11 @@ import CryptoKit
 ///                                         `SHA-256(<absolute config-dir path>)`;
 ///                                         account lives in `<dir>/.claude.json`
 struct ConfigAccountResolver {
-    /// Email + slot tag resolved for a Keychain service.
+    /// Email, slot tag, and plan label resolved for a Keychain service.
     struct Account {
         let email: String?
         let tag: String?
+        let plan: String?
     }
 
     private let servicePrefix = "Claude Code-credentials"
@@ -27,15 +28,37 @@ struct ConfigAccountResolver {
         let suffix = String(service.dropFirst(servicePrefix.count)).drop { $0 == "-" }
 
         if suffix.isEmpty {
-            let email = email(atConfigFile: home.appendingPathComponent(".claude.json"))
-            return Account(email: email, tag: "claude")
+            let config = readConfig(at: home.appendingPathComponent(".claude.json"))
+            return Account(email: config.email, tag: "claude", plan: Self.planLabel(for: config.tier))
         }
 
         for dir in candidateConfigDirs(home: home) where Self.shortHash(of: dir.path) == suffix {
-            let email = email(atConfigFile: dir.appendingPathComponent(".claude.json"))
-            return Account(email: email, tag: Self.tag(forConfigDir: dir.lastPathComponent))
+            let config = readConfig(at: dir.appendingPathComponent(".claude.json"))
+            return Account(
+                email: config.email,
+                tag: Self.tag(forConfigDir: dir.lastPathComponent),
+                plan: Self.planLabel(for: config.tier)
+            )
         }
-        return Account(email: nil, tag: nil)
+        return Account(email: nil, tag: nil, plan: nil)
+    }
+
+    /// Map Claude Code's `organizationRateLimitTier` to a friendly plan name,
+    /// e.g. "default_claude_max_20x" → "Max 20x". Returns nil for unknown tiers
+    /// rather than showing a raw internal string.
+    static func planLabel(for tier: String?) -> String? {
+        guard let tier else { return nil }
+        let value = tier.lowercased()
+        switch true {
+        case value.contains("max_20x"), value.contains("max20x"): return "Max 20x"
+        case value.contains("max_5x"), value.contains("max5x"): return "Max 5x"
+        case value.contains("max"): return "Max"
+        case value.contains("team"): return "Team"
+        case value.contains("enterprise"): return "Enterprise"
+        case value.contains("pro"): return "Pro"
+        case value.contains("free"): return "Free"
+        default: return nil
+        }
     }
 
     /// Derive a "claudeN" slot tag from a config-dir name, e.g.
@@ -58,13 +81,17 @@ struct ConfigAccountResolver {
             }
     }
 
-    private func email(atConfigFile url: URL) -> String? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
+    private func readConfig(at url: URL) -> (email: String?, tier: String?) {
+        guard let data = try? Data(contentsOf: url) else { return (nil, nil) }
         struct Config: Decodable {
-            struct Account: Decodable { let emailAddress: String? }
+            struct Account: Decodable {
+                let emailAddress: String?
+                let organizationRateLimitTier: String?
+            }
             let oauthAccount: Account?
         }
-        return (try? JSONDecoder().decode(Config.self, from: data))?.oauthAccount?.emailAddress
+        let account = (try? JSONDecoder().decode(Config.self, from: data))?.oauthAccount
+        return (account?.emailAddress, account?.organizationRateLimitTier)
     }
 
     /// First 8 hex characters (4 bytes) of the SHA-256 of `path`.

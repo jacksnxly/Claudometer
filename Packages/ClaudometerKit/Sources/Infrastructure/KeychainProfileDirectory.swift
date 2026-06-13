@@ -31,7 +31,8 @@ public struct KeychainProfileDirectory: ProfileDirectory {
                     id: ProfileID(service),
                     name: suffix.isEmpty ? "default" : String(suffix),
                     email: account.email,
-                    tag: account.tag
+                    tag: account.tag,
+                    plan: account.plan
                 )
             }
             .sorted { ($0.tag ?? "~", $0.displayName) < ($1.tag ?? "~", $1.displayName) }

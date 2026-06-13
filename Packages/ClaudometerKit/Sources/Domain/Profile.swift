@@ -22,12 +22,21 @@ public struct Profile: Identifiable, Hashable, Sendable {
     /// Short, stable handle for the profile slot (e.g. "claude1"), derived from
     /// the `CLAUDE_CONFIG_DIR`.
     public let tag: String?
+    /// Friendly subscription plan label (e.g. "Max 20x"), when resolvable.
+    public let plan: String?
 
-    public init(id: ProfileID, name: String, email: String? = nil, tag: String? = nil) {
+    public init(
+        id: ProfileID,
+        name: String,
+        email: String? = nil,
+        tag: String? = nil,
+        plan: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.email = email
         self.tag = tag
+        self.plan = plan
     }
 
     /// What to show the user: the email if known, otherwise the technical name.

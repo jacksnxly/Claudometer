@@ -90,6 +90,12 @@ private struct ProfileUsageView: View {
                     .truncationMode(.middle)
             }
 
+            if let plan = result.profile.plan {
+                Text(plan)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             if let snapshot = result.snapshot {
                 if snapshot.windows.isEmpty {
                     Text("No usage data")
