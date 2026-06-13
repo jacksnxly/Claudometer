@@ -158,6 +158,10 @@ private struct ProfileUsageView: View {
 private struct WindowMeter: View {
     let window: UsageWindow
 
+    /// Fixed schedule anchor so the 1-minute tick lands on consistent absolute
+    /// boundaries instead of restarting from "now" on every re-render.
+    private static let tickAnchor = Date(timeIntervalSince1970: 0)
+
     var body: some View {
         HStack(spacing: 10) {
             Text(window.period.label)
@@ -180,7 +184,7 @@ private struct WindowMeter: View {
     private var reset: some View {
         if let resetsAt = window.resetsAt {
             // Re-evaluate once a minute so the countdown stays live.
-            TimelineView(.periodic(from: Date(), by: 60)) { context in
+            TimelineView(.periodic(from: Self.tickAnchor, by: 60)) { context in
                 Text(ResetCountdown.text(to: resetsAt, from: context.date))
                     .help("Resets \(resetsAt.formatted(date: .abbreviated, time: .shortened))")
             }
