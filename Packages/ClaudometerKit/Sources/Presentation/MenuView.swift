@@ -85,6 +85,11 @@ private struct ProfileUsageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             header
+            if let recommendation {
+                Text(recommendation.text)
+                    .font(.caption2)
+                    .foregroundStyle(recommendation.color)
+            }
             if let snapshot = result.snapshot {
                 if snapshot.windows.isEmpty {
                     Text("No usage data")
@@ -106,6 +111,11 @@ private struct ProfileUsageView: View {
 
     private var header: some View {
         HStack(spacing: 7) {
+            if let rank = result.rank {
+                Image(systemName: "\(rank).circle.fill")
+                    .foregroundStyle(rank == 1 ? Color.green : Color.secondary)
+                    .help(rank == 1 ? "Use this account next" : "Recommended use order: #\(rank)")
+            }
             if let tag = result.profile.tag {
                 Text(tag)
                     .font(.caption2.monospaced())
@@ -128,6 +138,19 @@ private struct ProfileUsageView: View {
                     .background(Capsule().fill(.quaternary.opacity(0.6)))
             }
         }
+    }
+
+    /// Short rationale for this account's rank.
+    private var recommendation: (text: String, color: Color)? {
+        guard result.snapshot != nil else { return nil }
+        if !result.availableNow {
+            return ("5-hour limit reached — use later", .orange)
+        }
+        let free = Int((result.weeklyRemaining ?? 0).rounded())
+        if result.rank == 1 {
+            return ("Use next · \(free)% weekly credit at risk", .green)
+        }
+        return ("\(free)% weekly credit free", .secondary)
     }
 }
 
