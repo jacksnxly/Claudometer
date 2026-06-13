@@ -7,6 +7,7 @@ import Domain
 /// `CLAUDE_CONFIG_DIR` profiles).
 public struct KeychainProfileDirectory: ProfileDirectory {
     private let servicePrefix = "Claude Code-credentials"
+    private let accounts = ConfigAccountResolver()
 
     public init() {}
 
@@ -22,9 +23,15 @@ public struct KeychainProfileDirectory: ProfileDirectory {
             if name.hasPrefix(servicePrefix) { services.insert(name) }
         }
 
-        return services.sorted().map { service in
-            let suffix = String(service.dropFirst(servicePrefix.count)).drop { $0 == "-" }
-            return Profile(id: ProfileID(service), name: suffix.isEmpty ? "default" : String(suffix))
-        }
+        return services
+            .map { service in
+                let suffix = String(service.dropFirst(servicePrefix.count)).drop { $0 == "-" }
+                return Profile(
+                    id: ProfileID(service),
+                    name: suffix.isEmpty ? "default" : String(suffix),
+                    email: accounts.email(forService: service)
+                )
+            }
+            .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
     }
 }
