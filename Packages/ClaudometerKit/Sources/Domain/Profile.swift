@@ -19,11 +19,15 @@ public struct Profile: Identifiable, Hashable, Sendable {
     public let name: String
     /// The account's email address, when it can be resolved from local config.
     public let email: String?
+    /// Short, stable handle for the profile slot (e.g. "claude1"), derived from
+    /// the `CLAUDE_CONFIG_DIR`.
+    public let tag: String?
 
-    public init(id: ProfileID, name: String, email: String? = nil) {
+    public init(id: ProfileID, name: String, email: String? = nil, tag: String? = nil) {
         self.id = id
         self.name = name
         self.email = email
+        self.tag = tag
     }
 
     /// What to show the user: the email if known, otherwise the technical name.

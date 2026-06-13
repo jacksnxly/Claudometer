@@ -13,21 +13,36 @@ import CryptoKit
 ///                                         `SHA-256(<absolute config-dir path>)`;
 ///                                         account lives in `<dir>/.claude.json`
 struct ConfigAccountResolver {
+    /// Email + slot tag resolved for a Keychain service.
+    struct Account {
+        let email: String?
+        let tag: String?
+    }
+
     private let servicePrefix = "Claude Code-credentials"
     private let fileManager = FileManager.default
 
-    func email(forService service: String) -> String? {
+    func resolve(service: String) -> Account {
         let home = fileManager.homeDirectoryForCurrentUser
         let suffix = String(service.dropFirst(servicePrefix.count)).drop { $0 == "-" }
 
         if suffix.isEmpty {
-            return email(atConfigFile: home.appendingPathComponent(".claude.json"))
+            let email = email(atConfigFile: home.appendingPathComponent(".claude.json"))
+            return Account(email: email, tag: "claude")
         }
 
         for dir in candidateConfigDirs(home: home) where Self.shortHash(of: dir.path) == suffix {
-            return email(atConfigFile: dir.appendingPathComponent(".claude.json"))
+            let email = email(atConfigFile: dir.appendingPathComponent(".claude.json"))
+            return Account(email: email, tag: Self.tag(forConfigDir: dir.lastPathComponent))
         }
-        return nil
+        return Account(email: nil, tag: nil)
+    }
+
+    /// Derive a "claudeN" slot tag from a config-dir name, e.g.
+    /// ".claude-acct2" → "claude2", ".claude" → "claude".
+    static func tag(forConfigDir dirName: String) -> String {
+        let digits = dirName.filter(\.isNumber)
+        return digits.isEmpty ? "claude" : "claude\(digits)"
     }
 
     /// All `~/.claude*` directories — the possible `CLAUDE_CONFIG_DIR` locations.

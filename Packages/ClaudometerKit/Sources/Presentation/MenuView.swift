@@ -75,10 +75,20 @@ private struct ProfileUsageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(result.profile.displayName)
-                .font(.subheadline.bold())
-                .lineLimit(1)
-                .truncationMode(.middle)
+            HStack(spacing: 6) {
+                if let tag = result.profile.tag {
+                    Text(tag)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(.quaternary))
+                }
+                Text(result.profile.displayName)
+                    .font(.subheadline.bold())
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
 
             if let snapshot = result.snapshot {
                 if snapshot.windows.isEmpty {

@@ -26,12 +26,14 @@ public struct KeychainProfileDirectory: ProfileDirectory {
         return services
             .map { service in
                 let suffix = String(service.dropFirst(servicePrefix.count)).drop { $0 == "-" }
+                let account = accounts.resolve(service: service)
                 return Profile(
                     id: ProfileID(service),
                     name: suffix.isEmpty ? "default" : String(suffix),
-                    email: accounts.email(forService: service)
+                    email: account.email,
+                    tag: account.tag
                 )
             }
-            .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+            .sorted { ($0.tag ?? "~", $0.displayName) < ($1.tag ?? "~", $1.displayName) }
     }
 }
