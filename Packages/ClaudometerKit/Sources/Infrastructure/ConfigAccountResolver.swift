@@ -62,10 +62,11 @@ struct ConfigAccountResolver {
     }
 
     /// Derive a "claudeN" slot tag from a config-dir name, e.g.
-    /// ".claude-acct2" → "claude2", ".claude" → "claude".
+    /// ".claude-acct2" → "claude2", ".claude" → "claude". Uses only the FIRST
+    /// contiguous run of digits, so ".claude-2-beta3" → "claude2" (not "claude23").
     static func tag(forConfigDir dirName: String) -> String {
-        let digits = dirName.filter(\.isNumber)
-        return digits.isEmpty ? "claude" : "claude\(digits)"
+        let firstRun = dirName.drop { !$0.isNumber }.prefix { $0.isNumber }
+        return firstRun.isEmpty ? "claude" : "claude\(firstRun)"
     }
 
     /// All `~/.claude*` directories — the possible `CLAUDE_CONFIG_DIR` locations.

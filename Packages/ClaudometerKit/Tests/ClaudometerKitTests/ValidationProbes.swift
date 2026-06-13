@@ -49,9 +49,11 @@ private struct SlowProvider: UsageProvider {
 // MARK: - Finding 3 — tag(forConfigDir:) must use only the first digit run
 
 @Test func finding3_tag_multiDigitGroups_collapse() {
-    // Documented case still works.
+    // Documented cases still work.
     #expect(ConfigAccountResolver.tag(forConfigDir: ".claude-acct2") == "claude2")
-    // Desired: first contiguous digit run only.
+    #expect(ConfigAccountResolver.tag(forConfigDir: ".claude") == "claude")
+    #expect(ConfigAccountResolver.tag(forConfigDir: ".claude-10") == "claude10")
+    // First contiguous digit run only.
     // Current (buggy): filter(\.isNumber) concatenates ALL digits → "claude23".
     #expect(ConfigAccountResolver.tag(forConfigDir: ".claude-2-beta3") == "claude2")
 }
