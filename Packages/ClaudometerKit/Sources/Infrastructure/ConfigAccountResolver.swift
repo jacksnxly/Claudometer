@@ -20,12 +20,11 @@ struct ConfigAccountResolver {
         let plan: String?
     }
 
-    private let servicePrefix = "Claude Code-credentials"
     private let fileManager = FileManager.default
 
     func resolve(service: String) -> Account {
         let home = fileManager.homeDirectoryForCurrentUser
-        let suffix = String(service.dropFirst(servicePrefix.count)).drop { $0 == "-" }
+        let suffix = ProfileService.suffix(ofService: service)
 
         if suffix.isEmpty {
             let config = readConfig(at: home.appendingPathComponent(".claude.json"))

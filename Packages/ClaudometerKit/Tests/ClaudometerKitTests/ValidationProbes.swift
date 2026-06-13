@@ -87,6 +87,14 @@ private struct SlowProvider: UsageProvider {
     #expect(try KeychainTokenStore.accessToken(fromBlob: valid) == "sk-ant-oat01-xyz")
 }
 
+// MARK: - Finding 8 — one shared source of truth for the service-name format
+
+@Test func finding8_profileServiceSuffix() {
+    #expect(ProfileService.prefix == "Claude Code-credentials")
+    #expect(String(ProfileService.suffix(ofService: "Claude Code-credentials")) == "")
+    #expect(String(ProfileService.suffix(ofService: "Claude Code-credentials-ab12cd34")) == "ab12cd34")
+}
+
 // MARK: - Finding 4 — meter label truncates instead of rounding (documents the fact)
 
 @Test func observe_finding4_intTruncationVsRounding() {

@@ -6,7 +6,6 @@ import Domain
 /// (the default profile) or `Claude Code-credentials-<hash>` (extra
 /// `CLAUDE_CONFIG_DIR` profiles).
 public struct KeychainProfileDirectory: ProfileDirectory {
-    private let servicePrefix = "Claude Code-credentials"
     private let accounts = ConfigAccountResolver()
 
     public init() {}
@@ -17,15 +16,15 @@ public struct KeychainProfileDirectory: ProfileDirectory {
         var services = Set<String>()
         for line in dump.split(separator: "\n") {
             guard line.contains("\"svce\"<blob>="),
-                  line.contains(servicePrefix),
+                  line.contains(ProfileService.prefix),
                   let marker = line.range(of: "=\"") else { continue }
             let name = String(line[marker.upperBound...].dropLast()) // strip trailing quote
-            if name.hasPrefix(servicePrefix) { services.insert(name) }
+            if name.hasPrefix(ProfileService.prefix) { services.insert(name) }
         }
 
         return services
             .map { service in
-                let suffix = String(service.dropFirst(servicePrefix.count)).drop { $0 == "-" }
+                let suffix = ProfileService.suffix(ofService: service)
                 let account = accounts.resolve(service: service)
                 return Profile(
                     id: ProfileID(service),
