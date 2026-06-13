@@ -2,6 +2,12 @@
 .build/
 .swiftpm/
 DerivedData/
-*.xcodeproj
-*.xcworkspace
+
+# Keep the .xcodeproj tracked, but not per-user state
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+
+# Local SwiftPM resolution
 Package.resolved
+**/.swiftpm/
