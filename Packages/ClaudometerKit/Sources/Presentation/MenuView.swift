@@ -181,7 +181,7 @@ private struct WindowMeter: View {
         if let resetsAt = window.resetsAt {
             // Re-evaluate once a minute so the countdown stays live.
             TimelineView(.periodic(from: Date(), by: 60)) { context in
-                Text(Self.countdown(to: resetsAt, from: context.date))
+                Text(ResetCountdown.text(to: resetsAt, from: context.date))
                     .help("Resets \(resetsAt.formatted(date: .abbreviated, time: .shortened))")
             }
         } else {
@@ -197,9 +197,15 @@ private struct WindowMeter: View {
         }
     }
 
-    /// Compact countdown showing the two most significant units, e.g.
-    /// "in 21m", "in 2h 41m", "in 1d 23h", "in 5d".
-    static func countdown(to date: Date, from now: Date) -> String {
+}
+
+/// Compact relative-countdown formatting for a usage window's reset time.
+/// Pure and testable — kept out of the SwiftUI view body.
+enum ResetCountdown {
+    /// The two most significant units, e.g. "in 21m", "in 2h 41m", "in 1d 23h",
+    /// "in 5d". A reset less than a minute away renders "<1m" rather than the
+    /// misleading "in 0m"; an elapsed reset renders "now".
+    static func text(to date: Date, from now: Date) -> String {
         let seconds = Int(date.timeIntervalSince(now))
         guard seconds > 0 else { return "now" }
         let minutes = seconds / 60
@@ -213,6 +219,7 @@ private struct WindowMeter: View {
             let m = minutes % 60
             return m > 0 ? "in \(hours)h \(m)m" : "in \(hours)h"
         }
+        if minutes < 1 { return "<1m" }
         return "in \(minutes)m"
     }
 }

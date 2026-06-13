@@ -2,7 +2,7 @@ import Testing
 import Foundation
 import Domain
 import Application
-import Presentation
+@testable import Presentation
 @testable import Infrastructure
 
 // Keryx Stage-2 validation probes for the main-branch review (c72a69b).
@@ -57,24 +57,17 @@ private struct SlowProvider: UsageProvider {
 }
 
 // MARK: - Finding 2 — countdown must not render "in 0m" for sub-minute resets
-// Faithful copy of WindowMeter.countdown (MenuView.swift:202-217) @ c72a69b; the real
-// symbol is `private`. Stage 3 will extract it to an internal helper and retarget this test.
-
-private func countdownFaithfulCopy(seconds: Int) -> String {
-    guard seconds > 0 else { return "now" }
-    let minutes = seconds / 60
-    let hours = minutes / 60
-    let days = hours / 24
-    if days >= 1 { let h = hours % 24; return h > 0 ? "in \(days)d \(h)h" : "in \(days)d" }
-    if hours >= 1 { let m = minutes % 60; return m > 0 ? "in \(hours)h \(m)m" : "in \(hours)h" }
-    return "in \(minutes)m"
-}
+// Exercises the real ResetCountdown.text (extracted from WindowMeter) via @testable.
 
 @Test func finding2_countdown_subMinute_isNotZeroMinutes() {
-    #expect(countdownFaithfulCopy(seconds: 3600) == "in 1h")   // sanity: existing cases ok
-    #expect(countdownFaithfulCopy(seconds: 90) == "in 1m")     // sanity
-    // Current (buggy): 45s → "in 0m". Desired: anything but the misleading "in 0m".
-    #expect(countdownFaithfulCopy(seconds: 45) != "in 0m")
+    let now = Date(timeIntervalSince1970: 1_000_000)
+    func cd(_ seconds: Int) -> String { ResetCountdown.text(to: now.addingTimeInterval(Double(seconds)), from: now) }
+    #expect(cd(3600) == "in 1h")  // sanity: existing cases unchanged
+    #expect(cd(90) == "in 1m")    // sanity
+    #expect(cd(0) == "now")       // elapsed
+    // Current (buggy): 45s → "in 0m". Fixed: a sub-minute reset reads "<1m".
+    #expect(cd(45) == "<1m")
+    #expect(cd(45) != "in 0m")
 }
 
 // MARK: - Finding 4 — meter label truncates instead of rounding (documents the fact)
