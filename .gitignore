@@ -11,3 +11,4 @@ xcuserdata/
 # Local SwiftPM resolution
 Package.resolved
 **/.swiftpm/
+.osgrep
