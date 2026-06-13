@@ -25,6 +25,10 @@ let package = Package(
         .target(name: "Application", dependencies: ["Domain"]),
         .target(name: "Infrastructure", dependencies: ["Domain"]),
         .target(name: "Presentation", dependencies: ["Domain", "Application"]),
+        .testTarget(
+            name: "ClaudometerKitTests",
+            dependencies: ["Domain", "Application", "Infrastructure", "Presentation"]
+        ),
     ],
     swiftLanguageModes: [.v5]
 )
