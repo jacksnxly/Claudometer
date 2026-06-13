@@ -166,7 +166,7 @@ private struct WindowMeter: View {
                 .foregroundStyle(.secondary)
             ProgressView(value: window.utilization.percentage, total: 100)
                 .tint(color)
-            Text("\(Int(window.utilization.percentage))%")
+            Text("\(Int(window.utilization.percentage.rounded()))%")
                 .font(.caption.monospaced())
                 .frame(width: 38, alignment: .trailing)
             reset
