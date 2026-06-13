@@ -19,8 +19,8 @@ public struct MenuView: View {
             Divider()
             footer
         }
-        .padding(14)
-        .frame(width: 360)
+        .padding(16)
+        .frame(width: 420)
         .task {
             if viewModel.results.isEmpty { await viewModel.refresh() }
         }
@@ -29,8 +29,12 @@ public struct MenuView: View {
     private var header: some View {
         HStack(spacing: 6) {
             Image(systemName: "gauge.with.dots.needle.50percent")
+                .foregroundStyle(.tint)
             Text("Claudometer").font(.headline)
             Spacer()
+            if viewModel.isLoading {
+                ProgressView().controlSize(.small)
+            }
             Button {
                 Task { await viewModel.refresh() }
             } label: {
@@ -49,8 +53,13 @@ public struct MenuView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            ForEach(viewModel.results) { result in
-                ProfileUsageView(result: result)
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(Array(viewModel.results.enumerated()), id: \.element.id) { index, result in
+                    if index > 0 {
+                        Divider().opacity(0.4)
+                    }
+                    ProfileUsageView(result: result)
+                }
             }
         }
     }
@@ -69,33 +78,13 @@ public struct MenuView: View {
     }
 }
 
-/// One profile's block: name + a meter per usage window (or a failure note).
+/// One profile's block: header (slot · email · plan) + a meter per usage window.
 private struct ProfileUsageView: View {
     let result: ProfileUsageResult
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                if let tag = result.profile.tag {
-                    Text(tag)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(.quaternary))
-                }
-                Text(result.profile.displayName)
-                    .font(.subheadline.bold())
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-
-            if let plan = result.profile.plan {
-                Text(plan)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
+        VStack(alignment: .leading, spacing: 7) {
+            header
             if let snapshot = result.snapshot {
                 if snapshot.windows.isEmpty {
                     Text("No usage data")
@@ -114,6 +103,32 @@ private struct ProfileUsageView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var header: some View {
+        HStack(spacing: 7) {
+            if let tag = result.profile.tag {
+                Text(tag)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(.quaternary))
+            }
+            Text(result.profile.displayName)
+                .font(.subheadline.bold())
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 8)
+            if let plan = result.profile.plan {
+                Text(plan)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(.quaternary.opacity(0.6)))
+            }
+        }
+    }
 }
 
 /// A single labelled progress bar for one usage window.
@@ -121,28 +136,31 @@ private struct WindowMeter: View {
     let window: UsageWindow
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Text(window.period.label)
                 .font(.caption.monospaced())
-                .frame(width: 84, alignment: .leading)
+                .frame(width: 86, alignment: .leading)
                 .foregroundStyle(.secondary)
             ProgressView(value: window.utilization.percentage, total: 100)
                 .tint(color)
             Text("\(Int(window.utilization.percentage))%")
                 .font(.caption.monospaced())
-                .frame(width: 34, alignment: .trailing)
+                .frame(width: 38, alignment: .trailing)
             reset
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
-                .frame(width: 58, alignment: .trailing)
+                .frame(width: 74, alignment: .trailing)
         }
     }
 
     @ViewBuilder
     private var reset: some View {
         if let resetsAt = window.resetsAt {
-            Text(resetsAt, style: .relative)
-                .help("Resets \(resetsAt.formatted(date: .abbreviated, time: .shortened))")
+            // Re-evaluate once a minute so the countdown stays live.
+            TimelineView(.periodic(from: Date(), by: 60)) { context in
+                Text(Self.countdown(to: resetsAt, from: context.date))
+                    .help("Resets \(resetsAt.formatted(date: .abbreviated, time: .shortened))")
+            }
         } else {
             Text("—")
         }
@@ -154,5 +172,24 @@ private struct WindowMeter: View {
         case .warning: return .yellow
         case .critical: return .red
         }
+    }
+
+    /// Compact countdown showing the two most significant units, e.g.
+    /// "in 21m", "in 2h 41m", "in 1d 23h", "in 5d".
+    static func countdown(to date: Date, from now: Date) -> String {
+        let seconds = Int(date.timeIntervalSince(now))
+        guard seconds > 0 else { return "now" }
+        let minutes = seconds / 60
+        let hours = minutes / 60
+        let days = hours / 24
+        if days >= 1 {
+            let h = hours % 24
+            return h > 0 ? "in \(days)d \(h)h" : "in \(days)d"
+        }
+        if hours >= 1 {
+            let m = minutes % 60
+            return m > 0 ? "in \(hours)h \(m)m" : "in \(hours)h"
+        }
+        return "in \(minutes)m"
     }
 }
