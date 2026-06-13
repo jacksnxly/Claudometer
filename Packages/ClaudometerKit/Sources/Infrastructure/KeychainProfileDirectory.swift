@@ -22,10 +22,11 @@ public struct KeychainProfileDirectory: ProfileDirectory {
             if name.hasPrefix(ProfileService.prefix) { services.insert(name) }
         }
 
+        let configDirs = accounts.configDirsByShortHash()
         return services
             .map { service in
                 let suffix = ProfileService.suffix(ofService: service)
-                let account = accounts.resolve(service: service)
+                let account = accounts.resolve(service: service, configDirs: configDirs)
                 return Profile(
                     id: ProfileID(service),
                     name: suffix.isEmpty ? "default" : String(suffix),

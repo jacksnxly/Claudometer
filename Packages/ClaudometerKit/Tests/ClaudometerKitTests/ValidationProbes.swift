@@ -95,6 +95,26 @@ private struct SlowProvider: UsageProvider {
     #expect(String(ProfileService.suffix(ofService: "Claude Code-credentials-ab12cd34")) == "ab12cd34")
 }
 
+// MARK: - Finding 7 — resolve against a precomputed config-dir map (behavior preserved)
+
+@Test func finding7_resolveUsesPrecomputedConfigDirs() throws {
+    let resolver = ConfigAccountResolver()
+    let fm = FileManager.default
+    let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("keryx-claude-\(ProcessInfo.processInfo.globallyUniqueString)")
+    try fm.createDirectory(at: tmp, withIntermediateDirectories: true)
+    defer { try? fm.removeItem(at: tmp) }
+    let json = #"{"oauthAccount":{"emailAddress":"probe@example.com","organizationRateLimitTier":"default_claude_max_20x"}}"#
+    try json.write(to: tmp.appendingPathComponent(".claude.json"), atomically: true, encoding: .utf8)
+
+    // Hashed-profile path: looks up the dir in the precomputed map and reads its config.
+    let account = resolver.resolve(service: "Claude Code-credentials-deadbeef", configDirs: ["deadbeef": tmp])
+    #expect(account.email == "probe@example.com")
+    #expect(account.plan == "Max 20x")
+    // Unknown hash → empty account, no crash.
+    #expect(resolver.resolve(service: "Claude Code-credentials-unknown0", configDirs: ["deadbeef": tmp]).email == nil)
+}
+
 // MARK: - Finding 4 — meter label truncates instead of rounding (documents the fact)
 
 @Test func observe_finding4_intTruncationVsRounding() {

@@ -22,7 +22,20 @@ struct ConfigAccountResolver {
 
     private let fileManager = FileManager.default
 
-    func resolve(service: String) -> Account {
+    /// Build the `shortHash → config-dir` map once, so resolving a batch of
+    /// services doesn't re-list `$HOME` and re-hash every candidate dir per call.
+    func configDirsByShortHash() -> [String: URL] {
+        let home = fileManager.homeDirectoryForCurrentUser
+        var map: [String: URL] = [:]
+        for dir in candidateConfigDirs(home: home) {
+            map[Self.shortHash(of: dir.path)] = dir
+        }
+        return map
+    }
+
+    /// Resolve one service against a precomputed `configDirs` map (see
+    /// `configDirsByShortHash()`), reused across the whole refresh.
+    func resolve(service: String, configDirs: [String: URL]) -> Account {
         let home = fileManager.homeDirectoryForCurrentUser
         let suffix = ProfileService.suffix(ofService: service)
 
@@ -31,15 +44,15 @@ struct ConfigAccountResolver {
             return Account(email: config.email, tag: "claude", plan: Self.planLabel(for: config.tier))
         }
 
-        for dir in candidateConfigDirs(home: home) where Self.shortHash(of: dir.path) == suffix {
-            let config = readConfig(at: dir.appendingPathComponent(".claude.json"))
-            return Account(
-                email: config.email,
-                tag: Self.tag(forConfigDir: dir.lastPathComponent),
-                plan: Self.planLabel(for: config.tier)
-            )
+        guard let dir = configDirs[String(suffix)] else {
+            return Account(email: nil, tag: nil, plan: nil)
         }
-        return Account(email: nil, tag: nil, plan: nil)
+        let config = readConfig(at: dir.appendingPathComponent(".claude.json"))
+        return Account(
+            email: config.email,
+            tag: Self.tag(forConfigDir: dir.lastPathComponent),
+            plan: Self.planLabel(for: config.tier)
+        )
     }
 
     /// Map Claude Code's `organizationRateLimitTier` to a friendly plan name,
