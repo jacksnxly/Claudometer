@@ -10,7 +10,10 @@ enum SecurityCLI {
         process.arguments = arguments
         let stdout = Pipe()
         process.standardOutput = stdout
-        process.standardError = Pipe()
+        // Discard stderr via the null device rather than an unread Pipe(): an
+        // undrained pipe can deadlock if the child ever fills its ~64 KB buffer
+        // while we block reading stdout. FileHandle.nullDevice has no such buffer.
+        process.standardError = FileHandle.nullDevice
         do {
             try process.run()
         } catch {
