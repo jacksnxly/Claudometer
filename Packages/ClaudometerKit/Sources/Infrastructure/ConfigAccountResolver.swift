@@ -12,7 +12,7 @@ import CryptoKit
 ///                                         `<hash>` is the first 8 hex chars of
 ///                                         `SHA-256(<absolute config-dir path>)`;
 ///                                         account lives in `<dir>/.claude.json`
-struct ConfigAccountResolver {
+struct ConfigAccountResolver: Sendable {
     /// Email, slot tag, and plan label resolved for a Keychain service.
     struct Account {
         let email: String?
@@ -20,12 +20,10 @@ struct ConfigAccountResolver {
         let plan: String?
     }
 
-    private let fileManager = FileManager.default
-
     /// Build the `shortHash → config-dir` map once, so resolving a batch of
     /// services doesn't re-list `$HOME` and re-hash every candidate dir per call.
     func configDirsByShortHash() -> [String: URL] {
-        let home = fileManager.homeDirectoryForCurrentUser
+        let home = FileManager.default.homeDirectoryForCurrentUser
         var map: [String: URL] = [:]
         for dir in candidateConfigDirs(home: home) {
             map[Self.shortHash(of: dir.path)] = dir
@@ -33,10 +31,21 @@ struct ConfigAccountResolver {
         return map
     }
 
+    /// The Claude Code config directory backing a Keychain service:
+    /// the default profile → `~/.claude`; a `CLAUDE_CONFIG_DIR` profile → the
+    /// hashed dir from `configDirs`. Session transcripts live under `<dir>/projects`.
+    func configDir(forService service: String, configDirs: [String: URL]) -> URL? {
+        let suffix = ProfileService.suffix(ofService: service)
+        if suffix.isEmpty {
+            return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude")
+        }
+        return configDirs[String(suffix)]
+    }
+
     /// Resolve one service against a precomputed `configDirs` map (see
     /// `configDirsByShortHash()`), reused across the whole refresh.
     func resolve(service: String, configDirs: [String: URL]) -> Account {
-        let home = fileManager.homeDirectoryForCurrentUser
+        let home = FileManager.default.homeDirectoryForCurrentUser
         let suffix = ProfileService.suffix(ofService: service)
 
         if suffix.isEmpty {
@@ -83,13 +92,13 @@ struct ConfigAccountResolver {
 
     /// All `~/.claude*` directories — the possible `CLAUDE_CONFIG_DIR` locations.
     private func candidateConfigDirs(home: URL) -> [URL] {
-        let names = (try? fileManager.contentsOfDirectory(atPath: home.path)) ?? []
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: home.path)) ?? []
         return names
             .filter { $0.hasPrefix(".claude") }
             .map { home.appendingPathComponent($0) }
             .filter { url in
                 var isDirectory: ObjCBool = false
-                return fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
+                return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
                     && isDirectory.boolValue
             }
     }

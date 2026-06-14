@@ -21,6 +21,9 @@ struct ClaudometerApp: App {
         refreshUsage: RefreshUsageUseCase(
             directory: KeychainProfileDirectory(),
             provider: AnthropicUsageProvider()
+        ),
+        refreshCost: RefreshCostUseCase(
+            ledger: TranscriptUsageLedger()
         )
     )
 

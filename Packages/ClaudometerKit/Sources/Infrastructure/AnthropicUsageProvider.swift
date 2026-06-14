@@ -7,7 +7,7 @@ import Domain
 /// ⚠️ `GET /api/oauth/usage` is undocumented and aggressively rate-limited with
 /// no `Retry-After`. Refresh on demand only — never poll tightly.
 public struct AnthropicUsageProvider: UsageProvider {
-    private let tokenStore = KeychainTokenStore()
+    private let tokens: OAuthTokenProvider
     private let session: URLSession
     private let endpoint = URL(string: "https://api.anthropic.com/api/oauth/usage")!
 
@@ -16,11 +16,23 @@ public struct AnthropicUsageProvider: UsageProvider {
 
     public init(session: URLSession = .shared) {
         self.session = session
+        self.tokens = OAuthTokenProvider(session: session)
     }
 
     public func usage(for profile: Profile) async throws -> UsageSnapshot {
-        let token = try tokenStore.accessToken(for: profile.id)
+        let token = try await tokens.accessToken(for: profile.id)
+        do {
+            return try await fetchUsage(token: token, profile: profile)
+        } catch InfrastructureError.http(401) {
+            // A 401 here means the access token went stale (Claude Code hasn't
+            // refreshed it lately). Refresh via the stored refresh token and retry
+            // once — if it still fails, the error propagates as usual.
+            let refreshed = try await tokens.accessToken(for: profile.id, forceRefresh: true)
+            return try await fetchUsage(token: refreshed, profile: profile)
+        }
+    }
 
+    private func fetchUsage(token: String, profile: Profile) async throws -> UsageSnapshot {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

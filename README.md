@@ -43,10 +43,10 @@ package, `Packages/ClaudometerKit`; the Xcode app target is the composition root
 
 | Layer | Depends on | Responsibility |
 |---|---|---|
-| **Domain** | nothing | `Profile`, `Utilization`, `UsageWindow`, `UsageSnapshot`, and the outbound ports `ProfileDirectory` / `UsageProvider`. No Keychain, no HTTP, no SwiftUI. |
-| **Application** | Domain | `RefreshUsageUseCase` — orchestrates "for each profile, fetch usage", capturing per-profile failures. |
-| **Infrastructure** | Domain | `KeychainProfileDirectory` + `AnthropicUsageProvider` implement the domain ports (the `security` CLI and the HTTP endpoint live here, behind the ports). |
-| **Presentation** | Domain, Application | `MenuBarViewModel` (`@Observable`) + SwiftUI `MenuView`. Knows nothing about Keychain or HTTP. |
+| **Domain** | nothing | `Profile`, `Utilization`, `UsageWindow`, `UsageSnapshot`; the spend model `TokenUsage` · `Money` · `PricingPolicy` · `CostReport` (+ `CostReportBuilder`); and the outbound ports `ProfileDirectory` / `UsageProvider` / `UsageLedger`. No Keychain, no HTTP, no SwiftUI. |
+| **Application** | Domain | `RefreshUsageUseCase` (per-profile quota %) and `RefreshCostUseCase` (per-profile token spend), each capturing per-profile failures. |
+| **Infrastructure** | Domain | `KeychainProfileDirectory` + `AnthropicUsageProvider` (auto-refreshing the OAuth token via `OAuthTokenProvider`) + `TranscriptUsageLedger` implement the domain ports. The `security` CLI, the HTTP endpoints, and the transcript parser live here, behind the ports. |
+| **Presentation** | Domain, Application | `MenuBarViewModel` (`@Observable`) + SwiftUI `MenuView` — a two-pane dashboard (**Usage**: per-account quota meters · **Spend**: a cross-account total + per-account estimated value) with a privacy (email-blur) toggle. Knows nothing about Keychain or HTTP. |
 | **App** | all of the above | Composition root: builds the concrete adapters and injects them. |
 
 ```
@@ -74,6 +74,20 @@ Claudometer/
   `User-Agent: claude-code/<version>`.
 - **Response** — `five_hour` / `seven_day` (plus `_opus` / `_sonnet`) objects,
   each with `utilization` (0–100%) and `resets_at`.
+- **Stale-token recovery** — the OAuth access token expires when Claude Code
+  hasn't run recently, which makes the usage endpoint return `401`. Claudometer
+  does what Claude Code does: exchanges the stored `refreshToken` at
+  `https://console.anthropic.com/v1/oauth/token` (proactively before `expiresAt`,
+  and reactively on a `401`), caching the new token in memory.
+- **Estimated spend** — the usage endpoint only returns percentages, and the
+  token-count Admin/Analytics APIs reject subscription tokens (`403`). So exact
+  token counts come from parsing Claude Code's own session transcripts
+  (`<CLAUDE_CONFIG_DIR>/projects/**/*.jsonl`, deduped by `message.id`+`requestId`),
+  priced per-model with `PricingPolicy` into a 7/14/30-day **equivalent API value**.
+  This is a value/ROI estimate (it dominated by cached-context reads), **not** what
+  a flat Pro/Max subscription is billed. Fully local — no network, no rate limit.
+- **Privacy mode** — an eye toggle blurs account emails so the spend stats can be
+  screenshotted for sharing without leaking identity.
 
 ### ⚠️ The usage endpoint is unofficial & rate-limited
 
@@ -103,10 +117,14 @@ cd Packages/ClaudometerKit && swift build
 
 ## Roadmap
 
-- [ ] On-disk cache with a 5-min TTL + file lock (shared across launches)
+- [x] Map Keychain hash → friendly `CLAUDE_CONFIG_DIR` name (account email + plan)
+- [x] Reset countdowns from `resets_at`
+- [x] Exact token usage + estimated $ per account from local transcripts (7/14/30-day)
+- [x] OAuth access-token auto-refresh (fixes the stale-session `401`)
+- [x] Privacy mode — blur emails for sharing stats
+- [ ] On-disk cache of the transcript parse (avoid re-scanning every refresh)
 - [ ] Read `rate_limits` off Claude Code statusline stdin for the active profile (no network)
-- [ ] Map Keychain hash → friendly `CLAUDE_CONFIG_DIR` name
-- [ ] Reset countdowns from `resets_at`; Opus / Sonnet sub-meters
+- [ ] Opus / Sonnet sub-meters; cost trend sparkline
 - [ ] Launch-at-login; unit tests for the use case (Domain is pure → trivial to test)
 
 ## License

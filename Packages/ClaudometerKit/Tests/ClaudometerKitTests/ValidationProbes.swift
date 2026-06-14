@@ -25,6 +25,11 @@ private struct SlowProvider: UsageProvider {
     }
 }
 
+/// No-op ledger for view-model tests that don't exercise cost.
+private struct EmptyLedger: UsageLedger {
+    func entries(for profile: Profile, now: Date) async throws -> [LedgerEntry] { [] }
+}
+
 // MARK: - Finding 1 — .task cancellation must not commit failure rows
 
 @MainActor
@@ -33,7 +38,8 @@ private struct SlowProvider: UsageProvider {
         refreshUsage: RefreshUsageUseCase(
             directory: FakeDirectory(result: [Profile(id: ProfileID("svc-a"), name: "a")]),
             provider: SlowProvider()
-        )
+        ),
+        refreshCost: RefreshCostUseCase(ledger: EmptyLedger())
     )
     let task = Task { await vm.refresh() }
     try? await Task.sleep(for: .milliseconds(100)) // let it enter the in-flight network call
